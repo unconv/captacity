@@ -1,6 +1,7 @@
 import subprocess
 import tempfile
 import whisper
+import math
 import json
 import sys
 import cv2
@@ -13,24 +14,53 @@ output_file = os.path.join(current_dir, "with_transcript.avi")
 temp_video_file = tempfile.NamedTemporaryFile(suffix=".avi").name
 temp_audio_file = tempfile.NamedTemporaryFile(suffix=".wav").name
 
-def write_text(text, frame, video_writer):
+def write_line(text, frame, text_y, font, font_scale, white_color, black_color, thickness, border):
+    # Calculate the position for centered text
+    text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
+    text_x = (frame.shape[1] - text_size[0]) // 2  # Center horizontally
+    org = (text_x, text_y)  # Position of the text
+
+    frame = cv2.putText(frame, text, org, font, font_scale, black_color, thickness + border * 2, cv2.LINE_AA)
+    frame = cv2.putText(frame, text, org, font, font_scale, white_color, thickness, cv2.LINE_AA)
+
+    return frame
+
+def write_text(text, frame):
     font = cv2.FONT_HERSHEY_SIMPLEX
     white_color = (255, 255, 255)
     black_color = (0, 0, 0)
     thickness = 10
     font_scale = 3
     border = 5
+    margin = 18
 
-    # Calculate the position for centered text
-    text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
-    text_x = (frame.shape[1] - text_size[0]) // 2  # Center horizontally
-    text_y = (frame.shape[0] + text_size[1]) // 2  # Center vertically
-    org = (text_x, text_y)  # Position of the text
+    # TODO: center multi line text properly
+    text_y = (frame.shape[0]) // 2  # Center vertically
 
-    frame = cv2.putText(frame, text, org, font, font_scale, black_color, thickness + border * 2, cv2.LINE_AA)
-    frame = cv2.putText(frame, text, org, font, font_scale, white_color, thickness, cv2.LINE_AA)
+    line_to_draw = None
+    line = ""
+    words = text.split()
+    word_index = 0
+    while word_index < len(words):
+        word = words[word_index]
+        line += word + " "
+        text_size = cv2.getTextSize(line.strip(), font, font_scale, thickness)[0]
+        text_width = text_size[0]
 
-    video_writer.write(frame)
+        if text_width > frame.shape[1]:
+            if line_to_draw:
+                frame = write_line(line_to_draw, frame, text_y, font, font_scale, white_color, black_color, thickness, border)
+                line_to_draw = None
+            text_y += text_size[1] + margin
+            line = ""
+        else:
+            line_to_draw = line.strip()
+            word_index += 1
+
+    if line_to_draw:
+        frame = write_line(line_to_draw, frame, text_y, font, font_scale, white_color, black_color, thickness, border)
+
+    return frame
 
 def ffmpeg(command):
     return subprocess.run(command, capture_output=True)
@@ -54,12 +84,6 @@ def main():
 
     segments = transcription["segments"]
 
-    words = {}
-
-    for segment in segments:
-        for word in segment["words"]:
-            words[word["start"]] = word["word"]
-
     # Open the video file
     cap = cv2.VideoCapture(video_file)
     framerate = cap.get(cv2.CAP_PROP_FPS)
@@ -69,18 +93,22 @@ def main():
     out = cv2.VideoWriter(temp_video_file, fourcc, framerate, (int(cap.get(3)), int(cap.get(4))))
 
     time = 0.0
+    lookahead = 2.0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        for start_time, word in words.items():
-            if start_time <= time:
-                word_to_use = word
-            else:
-                break
+        text_to_use = ""
+        time_chunk = math.ceil(time / lookahead) * lookahead
 
-        write_text(word_to_use, frame, out)
+        for segment in segments:
+            for word in segment["words"]:
+                if word["start"] >= time_chunk - lookahead and word["start"] < time_chunk:
+                    text_to_use += word["word"]
+
+        frame = write_text(text_to_use, frame)
+        out.write(frame)
 
         time += 1/framerate
 
