@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import subprocess
 import tempfile
 import whisper
@@ -7,12 +9,28 @@ import sys
 import cv2
 import os
 
+import segment_parser
+
 video_file = sys.argv[1]
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 output_file = os.path.join(current_dir, "with_transcript.avi")
 temp_video_file = tempfile.NamedTemporaryFile(suffix=".avi").name
 temp_audio_file = tempfile.NamedTemporaryFile(suffix=".wav").name
+
+# TODO: make these parameters
+font = cv2.FONT_HERSHEY_SIMPLEX
+white_color = (255, 255, 255)
+black_color = (0, 0, 0)
+border = 5
+margin = 18
+thickness = 10
+font_scale = 3
+
+def fits_frame(frame_width):
+    def fit_function(text):
+        return len(calculate_lines(text, frame_width)["lines"]) <= 2
+    return fit_function
 
 def write_line(text, frame, text_y, font, font_scale, white_color, black_color, thickness, border):
     # Calculate the position for centered text
@@ -25,17 +43,8 @@ def write_line(text, frame, text_y, font, font_scale, white_color, black_color, 
 
     return frame
 
-def write_text(text, frame):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    white_color = (255, 255, 255)
-    black_color = (0, 0, 0)
-    thickness = 10
-    font_scale = 3
-    border = 5
-    margin = 18
-
-    # TODO: center multi line text properly
-    text_y = (frame.shape[0]) // 2  # Center vertically
+def calculate_lines(text, frame_width):
+    lines_to_write = []
 
     line_to_draw = None
     line = ""
@@ -46,21 +55,24 @@ def write_text(text, frame):
         line += word + " "
         text_size = cv2.getTextSize(line.strip(), font, font_scale, thickness)[0]
         text_width = text_size[0]
+        line_height = text_size[1]
 
-        if text_width > frame.shape[1]:
+        if text_width > frame_width:
             if line_to_draw:
-                frame = write_line(line_to_draw, frame, text_y, font, font_scale, white_color, black_color, thickness, border)
+                lines_to_write.append(line_to_draw)
                 line_to_draw = None
-            text_y += text_size[1] + margin
             line = ""
         else:
             line_to_draw = line.strip()
             word_index += 1
 
     if line_to_draw:
-        frame = write_line(line_to_draw, frame, text_y, font, font_scale, white_color, black_color, thickness, border)
+        lines_to_write.append(line_to_draw)
 
-    return frame
+    return {
+        "lines": lines_to_write,
+        "height": line_height,
+    }
 
 def ffmpeg(command):
     return subprocess.run(command, capture_output=True)
@@ -87,27 +99,31 @@ def main():
     # Open the video file
     cap = cv2.VideoCapture(video_file)
     framerate = cap.get(cv2.CAP_PROP_FPS)
+    frame_width = int(cap.get(3))
+    frame_height = int(cap.get(4))
+
+    captions = segment_parser.parse(segments, fits_frame(frame_width))
 
     # Define the codec and create a VideoWriter object to save the output video
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(temp_video_file, fourcc, framerate, (int(cap.get(3)), int(cap.get(4))))
+    out = cv2.VideoWriter(temp_video_file, fourcc, framerate, (frame_width, frame_height))
 
     time = 0.0
-    lookahead = 2.0
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        text_to_use = ""
-        time_chunk = math.ceil(time / lookahead) * lookahead
+        for caption in captions:
+            if caption["start"] <= time and caption["end"] > time:
+                line_data = calculate_lines(caption["text"], frame_width)
+                line_height = int(line_data["height"] + margin)
+                text_y = int(frame_height / 2 - (len(line_data["lines"]) * line_height / 2))
+                for line in line_data["lines"]:
+                    frame = write_line(line, frame, text_y, font, font_scale, white_color, black_color, thickness, border)
+                    text_y += line_height
+                break
 
-        for segment in segments:
-            for word in segment["words"]:
-                if word["start"] >= time_chunk - lookahead and word["start"] < time_chunk:
-                    text_to_use += word["word"]
-
-        frame = write_text(text_to_use, frame)
         out.write(frame)
 
         time += 1/framerate
