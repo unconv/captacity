@@ -12,6 +12,7 @@ import os
 import segment_parser
 
 video_file = sys.argv[1]
+caption_y_pos = 0.5
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 output_file = os.path.join(current_dir, "with_transcript.avi")
@@ -118,7 +119,7 @@ def main():
             if caption["start"] <= time and caption["end"] > time:
                 line_data = calculate_lines(caption["text"], frame_width)
                 line_height = int(line_data["height"] + margin)
-                text_y = int(frame_height / 2 - (len(line_data["lines"]) * line_height / 2))
+                text_y = int(frame_height * caption_y_pos - (len(line_data["lines"]) * line_height / 2))
                 for line in line_data["lines"]:
                     frame = write_line(line, frame, text_y, font, font_scale, white_color, black_color, thickness, border)
                     text_y += line_height
