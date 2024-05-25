@@ -1,2 +1,4 @@
 git+https://github.com/openai/whisper.git
 opencv-python
+moviepy
+pillow
