@@ -22,7 +22,7 @@ font = "fonts/Bangers-Regular.ttf"
 stroke_width = 3
 stroke_color = "black"
 font_size = 130
-font_color = "#35dc0a"
+font_color = "yellow"
 padding = 50
 position = ("center", "center")
 
