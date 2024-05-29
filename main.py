@@ -25,6 +25,8 @@ font_size = 130
 font_color = "yellow"
 padding = 50
 position = ("center", "center")
+shadow_strength = 1
+shadow_blur = 0.1
 
 def fits_frame(frame_width):
     def fit_function(text):
@@ -65,6 +67,14 @@ def calculate_lines(text, frame_width):
 def ffmpeg(command):
     return subprocess.run(command, capture_output=True)
 
+def create_shadow(text, font_size, font, caption, blur_radius: float, opacity=1):
+    shadow = create_text(text, font_size, "black", font, blur_radius=int(font_size*blur_radius), opacity=opacity)
+    shadow = shadow.set_start(caption["start"])
+    shadow = shadow.set_duration(caption["end"] - caption["start"])
+    shadow = shadow.set_position(position)
+
+    return shadow
+
 def main():
     # Extract audio from video
     ffmpeg([
@@ -97,11 +107,22 @@ def main():
 
         lines = "\n".join(line_data["lines"])
 
+        # Create shadow
+        shadow_left = shadow_strength
+        while shadow_left >= 1:
+            shadow_left -= 1
+            shadow = create_shadow(lines, font_size, font, caption, shadow_blur, opacity=1)
+            clips.append(shadow)
+
+        if shadow_left > 0:
+            shadow = create_shadow(lines, font_size, font, caption, shadow_blur, opacity=shadow_left)
+            clips.append(shadow)
+
+        # Create text
         text = create_text(lines, font_size, font_color, font, stroke_color=stroke_color, stroke_width=stroke_width)
         text = text.set_start(caption["start"])
         text = text.set_duration(caption["end"] - caption["start"])
         text = text.set_position(position)
-
         clips.append(text)
 
     video_with_text = CompositeVideoClip(clips)
