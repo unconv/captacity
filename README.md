@@ -28,7 +28,7 @@ captacity.add_captions(
     video_file="my_short.mp4",
     output_file="my_short_with_captions.mp4",
 
-    font = "fonts/Bangers-Regular.ttf",
+    font = "/path/to/your/font.ttf",
     font_size = 130,
     font_color = "yellow",
 
