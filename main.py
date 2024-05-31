@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import whisper
 import json
+import time
 import sys
 import os
 
@@ -87,7 +88,10 @@ def create_shadow(text, font_size, font, caption, position, blur_radius: float, 
     return shadow
 
 def main():
+    _start_time = time.time()
+
     # Extract audio from video
+    print("Extracting audio...")
     ffmpeg([
         'ffmpeg',
         '-y',
@@ -95,6 +99,7 @@ def main():
         temp_audio_file
     ])
 
+    print("Transcribing audio...")
     model = whisper.load_model("base")
 
     transcription = model.transcribe(
@@ -105,6 +110,8 @@ def main():
     )
 
     segments = transcription["segments"]
+
+    print("Generating video elements...")
 
     # Open the video file
     video = VideoFileClip(video_file)
@@ -167,9 +174,15 @@ def main():
 
                 text_y_offset += line["height"]
 
+    print("Rendering video...")
     video_with_text = CompositeVideoClip(clips)
 
     video_with_text.write_videofile(output_file, codec="libx264", fps=video.fps)
+
+    end_time = time.time()
+    total_time = end_time - _start_time
+
+    print(f"Done in {total_time//60:02.0f}:{total_time%60:02.0f}")
 
 if __name__ == "__main__":
     main()
