@@ -5,7 +5,7 @@ Add automatic captions to YouTube Shorts (and other videos) using Whisper and Mo
 ## Quick start
 
 ```bash
-$ python3 captacity.py <video_file> [output_file]
+$ python3 captacity.py <video_file> <output_file>
 ```
 
 ## Programmatic use

@@ -222,11 +222,11 @@ def add_captions(
         print(f"Done in {total_time//60:02.0f}:{total_time%60:02.0f}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <video_file> [output_file]")
+    if len(sys.argv) < 3:
+        print(f"Usage: {sys.argv[0]} <video_file> <output_file>")
         sys.exit(1)
 
     video_file = sys.argv[1]
-    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+    output_file = sys.argv[2]
 
     add_captions(video_file, output_file, print_info=True)
