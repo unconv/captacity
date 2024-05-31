@@ -46,7 +46,7 @@ def get_text_size(text, fontsize, font, stroke_width):
     text_clip = create_text(text, fontsize=fontsize, color="white", font=font, stroke_width=stroke_width)
     return text_clip.size
 
-def get_text_size_ex(text, fontsize, font, stroke_width):
+def get_text_size_ex(text, font, fontsize, stroke_width):
     text_clip = create_text_ex(text, fontsize=fontsize, color="white", font=font, stroke_width=stroke_width)
     return text_clip.size
 

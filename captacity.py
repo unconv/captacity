@@ -4,39 +4,30 @@ from moviepy.editor import VideoFileClip, CompositeVideoClip
 import subprocess
 import tempfile
 import whisper
-import json
 import time
 import sys
-import os
 
-from text_drawer import get_text_size_ex, create_text_ex, blur_text_clip, Word
 import segment_parser
+from text_drawer import (
+    get_text_size_ex,
+    create_text_ex,
+    blur_text_clip,
+    Word,
+)
 
-video_file = sys.argv[1]
-
-current_dir = os.path.dirname(os.path.realpath(__file__))
-output_file = os.path.join(current_dir, "with_transcript.avi")
-temp_audio_file = tempfile.NamedTemporaryFile(suffix=".wav").name
-
-# TODO: make these parameters
-font = "fonts/Bangers-Regular.ttf"
-stroke_width = 3
-stroke_color = "black"
-font_size = 130
-font_color = "yellow"
-word_highlight_color = "red"
-highlight_current_word = True
-padding = 50
-position = ("center", "center")
-shadow_strength = 1.0
-shadow_blur = 0.1
-
-def fits_frame(frame_width):
+def fits_frame(font, font_size, stroke_width, frame_width):
     def fit_function(text):
-        return len(calculate_lines(text, frame_width)["lines"]) <= 2
+        lines = calculate_lines(
+            text,
+            font,
+            font_size,
+            stroke_width,
+            frame_width
+        )
+        return len(lines["lines"]) <= 2
     return fit_function
 
-def calculate_lines(text, frame_width):
+def calculate_lines(text, font, font_size, stroke_width, frame_width):
     lines = []
 
     line_to_draw = None
@@ -47,7 +38,7 @@ def calculate_lines(text, frame_width):
     while word_index < len(words):
         word = words[word_index]
         line += word + " "
-        text_size = get_text_size_ex(line.strip(), font_size, font, stroke_width)
+        text_size = get_text_size_ex(line.strip(), font, font_size, stroke_width)
         text_width = text_size[0]
         line_height = text_size[1]
 
@@ -87,11 +78,28 @@ def create_shadow(text, font_size, font, caption, position, blur_radius: float, 
 
     return shadow
 
-def main():
+def add_captions(
+    video_file,
+    output_file = "with_transcript.mp4",
+    font = "fonts/Bangers-Regular.ttf",
+    stroke_width = 3,
+    stroke_color = "black",
+    font_size = 130,
+    font_color = "yellow",
+    word_highlight_color = "red",
+    highlight_current_word = True,
+    padding = 50,
+    position = ("center", "center"), # TODO: Implement this
+    shadow_strength = 1.0,
+    shadow_blur = 0.1,
+    print_info = False,
+):
     _start_time = time.time()
 
-    # Extract audio from video
-    print("Extracting audio...")
+    if print_info:
+        print("Extracting audio...")
+
+    temp_audio_file = tempfile.NamedTemporaryFile(suffix=".wav").name
     ffmpeg([
         'ffmpeg',
         '-y',
@@ -99,7 +107,9 @@ def main():
         temp_audio_file
     ])
 
-    print("Transcribing audio...")
+    if print_info:
+        print("Transcribing audio...")
+
     model = whisper.load_model("base")
 
     transcription = model.transcribe(
@@ -111,14 +121,23 @@ def main():
 
     segments = transcription["segments"]
 
-    print("Generating video elements...")
+    if print_info:
+        print("Generating video elements...")
 
     # Open the video file
     video = VideoFileClip(video_file)
     text_bbox_width = video.w-padding*2
     clips = [video]
 
-    captions = segment_parser.parse(segments, fits_frame(text_bbox_width))
+    captions = segment_parser.parse(
+        segments=segments,
+        fit_function=fits_frame(
+            font,
+            font_size,
+            stroke_width,
+            text_bbox_width,
+        ),
+    )
 
     for caption in captions:
         captions_to_draw = []
@@ -138,7 +157,7 @@ def main():
             captions_to_draw.append(caption)
 
         for current_index, caption in enumerate(captions_to_draw):
-            line_data = calculate_lines(caption["text"], text_bbox_width)
+            line_data = calculate_lines(caption["text"], font, font_size, stroke_width, text_bbox_width)
 
             text_y_offset = video.h // 2 - line_data["height"] // 2
             index = 0
@@ -174,15 +193,30 @@ def main():
 
                 text_y_offset += line["height"]
 
-    print("Rendering video...")
+    if print_info:
+        print("Rendering video...")
+
     video_with_text = CompositeVideoClip(clips)
 
-    video_with_text.write_videofile(output_file, codec="libx264", fps=video.fps)
+    video_with_text.write_videofile(
+        filename=output_file,
+        codec="libx264",
+        fps=video.fps,
+        logger="bar" if print_info else None,
+    )
 
     end_time = time.time()
     total_time = end_time - _start_time
 
-    print(f"Done in {total_time//60:02.0f}:{total_time%60:02.0f}")
+    if print_info:
+        print(f"Done in {total_time//60:02.0f}:{total_time%60:02.0f}")
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} <video_file> [output_file]")
+        sys.exit(1)
+
+    video_file = sys.argv[1]
+    output_file = sys.argv[2] if len(sys.argv) > 2 else None
+
+    add_captions(video_file, output_file, print_info=True)
