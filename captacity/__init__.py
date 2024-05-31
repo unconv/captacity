@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
-
 from moviepy.editor import VideoFileClip, CompositeVideoClip
 import subprocess
 import tempfile
 import whisper
 import time
-import sys
 
-import segment_parser
-from text_drawer import (
+from . import segment_parser
+from .text_drawer import (
     get_text_size_ex,
     create_text_ex,
     blur_text_clip,
@@ -220,13 +217,3 @@ def add_captions(
 
     if print_info:
         print(f"Done in {total_time//60:02.0f}:{total_time%60:02.0f}")
-
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(f"Usage: {sys.argv[0]} <video_file> <output_file>")
-        sys.exit(1)
-
-    video_file = sys.argv[1]
-    output_file = sys.argv[2]
-
-    add_captions(video_file, output_file, print_info=True)
