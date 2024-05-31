@@ -9,6 +9,10 @@ setup(
     version='0.1.0',
     packages=find_packages(),
     install_requires=get_requirements(),
+    package_data={
+        'captacity': ['assets/**/*'],
+    },
+    include_package_data=True,
     url='https://github.com/unconv/captacity',
     license='MIT',
     author='Unconventional Coding',
