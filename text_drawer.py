@@ -26,15 +26,9 @@ class Word:
             char.set_color(color)
 
 class TextClipEx(TextClip):
-    def __init__(self, txt=None, filename=None, size=None, color='black',
-                 bg_color='transparent', fontsize=None, font='Courier',
-                 stroke_color=None, stroke_width=1, method='label',
-                 kerning=None, align='center', interline=None,
-                 tempfilename=None, temptxt=None,
-                 transparent=True, remove_temp=True,
-                 print_cmd=False):
-        super().__init__(txt, filename, size, color, bg_color, fontsize, font, stroke_color, stroke_width, method, kerning, align, interline, tempfilename, temptxt, transparent, remove_temp, print_cmd)
-        self.text = txt
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.text = kwargs["txt"]
 
 def moviepy_to_pillow(clip) -> Image:
     temp_file = tempfile.NamedTemporaryFile(suffix=".png").name
@@ -72,7 +66,7 @@ def blur_text_clip(text_clip, blur_radius: int) -> VideoClip:
     return text_clip
 
 def create_text(text, fontsize, color, font, bg_color='transparent', blur_radius: int=0, opacity=1, stroke_color=None, stroke_width=1, kerning=0) -> VideoClip:
-    text_clip = TextClipEx(text, fontsize=fontsize, color=color, bg_color=bg_color, font=font, stroke_color=stroke_color, stroke_width=stroke_width, kerning=kerning)
+    text_clip = TextClipEx(txt=text, fontsize=fontsize, color=color, bg_color=bg_color, font=font, stroke_color=stroke_color, stroke_width=stroke_width, kerning=kerning)
 
     text_clip = text_clip.set_opacity(opacity)
 
