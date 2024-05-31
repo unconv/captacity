@@ -15,7 +15,7 @@ from text_drawer import (
     Word,
 )
 
-def fits_frame(font, font_size, stroke_width, frame_width):
+def fits_frame(line_count, font, font_size, stroke_width, frame_width):
     def fit_function(text):
         lines = calculate_lines(
             text,
@@ -24,7 +24,7 @@ def fits_frame(font, font_size, stroke_width, frame_width):
             stroke_width,
             frame_width
         )
-        return len(lines["lines"]) <= 2
+        return len(lines["lines"]) <= line_count
     return fit_function
 
 def calculate_lines(text, font, font_size, stroke_width, frame_width):
@@ -81,17 +81,26 @@ def create_shadow(text, font_size, font, caption, position, blur_radius: float, 
 def add_captions(
     video_file,
     output_file = "with_transcript.mp4",
+
     font = "fonts/Bangers-Regular.ttf",
-    stroke_width = 3,
-    stroke_color = "black",
     font_size = 130,
     font_color = "yellow",
-    word_highlight_color = "red",
+
+    stroke_width = 3,
+    stroke_color = "black",
+
     highlight_current_word = True,
+    word_highlight_color = "red",
+
+    line_count = 2,
+    fit_function = None,
+
     padding = 50,
     position = ("center", "center"), # TODO: Implement this
+
     shadow_strength = 1.0,
     shadow_blur = 0.1,
+
     print_info = False,
 ):
     _start_time = time.time()
@@ -131,7 +140,8 @@ def add_captions(
 
     captions = segment_parser.parse(
         segments=segments,
-        fit_function=fits_frame(
+        fit_function=fit_function if fit_function else fits_frame(
+            line_count,
             font,
             font_size,
             stroke_width,
