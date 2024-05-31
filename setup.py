@@ -6,7 +6,7 @@ def get_requirements():
 
 setup(
     name='captacity',
-    version='0.1.0',
+    version='0.1.1',
     packages=find_packages(),
     install_requires=get_requirements(),
     package_data={
@@ -20,4 +20,9 @@ setup(
     description='Add Automatic Captions to YouTube Shorts with AI',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
+    entry_points={
+        'console_scripts': [
+            'captacity=captacity.cli:main',
+        ],
+    },
 )

@@ -3,9 +3,9 @@
 from captacity import add_captions
 import sys
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) < 3:
-        print(f"Usage: {sys.argv[0]} <video_file> <output_file>")
+        print(f"Usage: captacity <video_file> <output_file>")
         sys.exit(1)
 
     video_file = sys.argv[1]
