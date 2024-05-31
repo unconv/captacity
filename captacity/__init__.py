@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import whisper
 import time
+import os
 
 from . import segment_parser
 from .text_drawer import (
@@ -75,11 +76,23 @@ def create_shadow(text, font_size, font, caption, position, blur_radius: float, 
 
     return shadow
 
+def get_font_path(font):
+    if os.path.exists(font):
+        return font
+
+    dirname = os.path.dirname(__file__)
+    font = os.path.join(dirname, "assets", "fonts", font)
+
+    if not os.path.exists(font):
+        raise FileNotFoundError(f"Font '{font}' not found")
+
+    return font
+
 def add_captions(
     video_file,
     output_file = "with_transcript.mp4",
 
-    font = "fonts/Bangers-Regular.ttf",
+    font = "Bangers-Regular.ttf",
     font_size = 130,
     font_color = "yellow",
 
@@ -101,6 +114,8 @@ def add_captions(
     print_info = False,
 ):
     _start_time = time.time()
+
+    font = get_font_path(font)
 
     if print_info:
         print("Extracting audio...")
