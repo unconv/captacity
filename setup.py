@@ -11,6 +11,9 @@ setup(
     version='0.2.0',
     packages=find_packages(),
     install_requires=get_requirements(),
+    extras_require = {
+        'local_whisper':  ["openai-whisper"],
+    },
     package_data={
         'captacity': ['assets/**/*'],
     },

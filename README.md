@@ -47,3 +47,19 @@ captacity.add_captions(
     padding = 50,
 )
 ```
+
+## Using Whisper locally
+
+By default, OpenAI Whisper is used locally if the `openai-whisper` package is installed. Otherwise, the OpenAI Whisper API is used. If you want to force the use of the API, you can specify `use_local_whisper=False` in the arguments to `captacity.add_captions`:
+
+```python
+import captacity
+
+captacity.add_captions(
+    video_file="my_short.mp4",
+    output_file="my_short_with_captions.mp4",
+    use_local_whisper=False,
+)
+```
+
+You can install Captacity with `pip install captacity[local_whisper]` to install Whisper locally as well.

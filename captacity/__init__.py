@@ -1,11 +1,11 @@
 from moviepy.editor import VideoFileClip, CompositeVideoClip
 import subprocess
 import tempfile
-import whisper
 import time
 import os
 
 from . import segment_parser
+from . import transcriber
 from .text_drawer import (
     get_text_size_ex,
     create_text_ex,
@@ -88,6 +88,19 @@ def get_font_path(font):
 
     return font
 
+def detect_local_whisper(print_info):
+    try:
+        import whisper
+        use_local_whisper = True
+        if print_info:
+            print("Using local whisper model...")
+    except ImportError:
+        use_local_whisper = False
+        if print_info:
+            print("Using OpenAI Whisper API...")
+
+    return use_local_whisper
+
 def add_captions(
     video_file,
     output_file = "with_transcript.mp4",
@@ -115,6 +128,8 @@ def add_captions(
 
     initial_prompt = None,
     segments = None,
+
+    use_local_whisper = "auto",
 ):
     _start_time = time.time()
 
@@ -135,16 +150,13 @@ def add_captions(
         if print_info:
             print("Transcribing audio...")
 
-        model = whisper.load_model("base")
+        if use_local_whisper == "auto":
+            use_local_whisper = detect_local_whisper(print_info)
 
-        transcription = model.transcribe(
-            audio=temp_audio_file,
-            word_timestamps=True,
-            fp16=False,
-            initial_prompt=initial_prompt,
-        )
-
-        segments = transcription["segments"]
+        if use_local_whisper:
+            segments = transcriber.transcribe_locally(temp_audio_file, initial_prompt)
+        else:
+            segments = transcriber.transcribe_with_api(temp_audio_file, initial_prompt)
 
     if print_info:
         print("Generating video elements...")
