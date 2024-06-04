@@ -112,6 +112,9 @@ def add_captions(
     shadow_blur = 0.1,
 
     print_info = False,
+
+    initial_prompt = None,
+    segments = None,
 ):
     _start_time = time.time()
 
@@ -128,19 +131,20 @@ def add_captions(
         temp_audio_file
     ])
 
-    if print_info:
-        print("Transcribing audio...")
+    if segments is None:
+        if print_info:
+            print("Transcribing audio...")
 
-    model = whisper.load_model("base")
+        model = whisper.load_model("base")
 
-    transcription = model.transcribe(
-        audio=temp_audio_file,
-        word_timestamps=True,
-        fp16=False,
-        initial_prompt=None,
-    )
+        transcription = model.transcribe(
+            audio=temp_audio_file,
+            word_timestamps=True,
+            fp16=False,
+            initial_prompt=initial_prompt,
+        )
 
-    segments = transcription["segments"]
+        segments = transcription["segments"]
 
     if print_info:
         print("Generating video elements...")
