@@ -13,6 +13,9 @@ from .text_drawer import (
     Word,
 )
 
+shadow_cache = {}
+lines_cache = {}
+
 def fits_frame(line_count, font, font_size, stroke_width, frame_width):
     def fit_function(text):
         lines = calculate_lines(
@@ -26,6 +29,13 @@ def fits_frame(line_count, font, font_size, stroke_width, frame_width):
     return fit_function
 
 def calculate_lines(text, font, font_size, stroke_width, frame_width):
+    global lines_cache
+
+    arg_hash = hash((text, font, font_size, stroke_width, frame_width))
+
+    if arg_hash in lines_cache:
+        return lines_cache[arg_hash]
+
     lines = []
 
     line_to_draw = None
@@ -40,39 +50,47 @@ def calculate_lines(text, font, font_size, stroke_width, frame_width):
         text_width = text_size[0]
         line_height = text_size[1]
 
-        if text_width > frame_width:
-            if line_to_draw:
-                lines.append(line_to_draw)
-                total_height += line_height
-                line_to_draw = None
-            line = ""
-        else:
+        if text_width < frame_width:
             line_to_draw = {
                 "text": line.strip(),
                 "height": line_height,
             }
             word_index += 1
+        else:
+            if line_to_draw:
+                lines.append(line_to_draw)
+                total_height += line_height
+                line_to_draw = None
+            line = ""
 
     if line_to_draw:
         lines.append(line_to_draw)
         total_height += line_height
 
-    return {
+    data = {
         "lines": lines,
         "height": total_height,
     }
 
+    lines_cache[arg_hash] = data
+
+    return data
+
 def ffmpeg(command):
     return subprocess.run(command, capture_output=True)
 
-def create_shadow(text, font_size, font, caption, position, blur_radius: float, opacity=1):
-    shadow = create_text_ex(text, font_size, "black", font, opacity=opacity)
+def create_shadow(text: str, font_size: int, font: str, blur_radius: float, opacity: float=1.0):
+    global shadow_cache
 
+    arg_hash = hash((text, font_size, font, blur_radius, opacity))
+
+    if arg_hash in shadow_cache:
+        return shadow_cache[arg_hash].copy()
+
+    shadow = create_text_ex(text, font_size, "black", font, opacity=opacity)
     shadow = blur_text_clip(shadow, int(font_size*blur_radius))
 
-    shadow = shadow.set_start(caption["start"])
-    shadow = shadow.set_duration(caption["end"] - caption["start"])
-    shadow = shadow.set_position(position)
+    shadow_cache[arg_hash] = shadow.copy()
 
     return shadow
 
@@ -215,11 +233,17 @@ def add_captions(
                 shadow_left = shadow_strength
                 while shadow_left >= 1:
                     shadow_left -= 1
-                    shadow = create_shadow(word_list, font_size, font, caption, pos, shadow_blur, opacity=1)
+                    shadow = create_shadow(line["text"], font_size, font, shadow_blur, opacity=1)
+                    shadow = shadow.set_start(caption["start"])
+                    shadow = shadow.set_duration(caption["end"] - caption["start"])
+                    shadow = shadow.set_position(pos)
                     clips.append(shadow)
 
                 if shadow_left > 0:
-                    shadow = create_shadow(word_list, font_size, font, caption, pos, shadow_blur, opacity=shadow_left)
+                    shadow = create_shadow(line["text"], font_size, font, shadow_blur, opacity=shadow_left)
+                    shadow = shadow.set_start(caption["start"])
+                    shadow = shadow.set_duration(caption["end"] - caption["start"])
+                    shadow = shadow.set_position(pos)
                     clips.append(shadow)
 
                 # Create text
@@ -230,6 +254,12 @@ def add_captions(
                 clips.append(text)
 
                 text_y_offset += line["height"]
+
+    end_time = time.time()
+    generation_time = end_time - _start_time
+
+    if print_info:
+        print(f"Generated in {generation_time//60:02.0f}:{generation_time%60:02.0f} ({len(clips)} clips)")
 
     if print_info:
         print("Rendering video...")
@@ -245,6 +275,9 @@ def add_captions(
 
     end_time = time.time()
     total_time = end_time - _start_time
+    render_time = total_time - generation_time
 
     if print_info:
+        print(f"Generated in {generation_time//60:02.0f}:{generation_time%60:02.0f}")
+        print(f"Rendered in {render_time//60:02.0f}:{render_time%60:02.0f}")
         print(f"Done in {total_time//60:02.0f}:{total_time%60:02.0f}")

@@ -3,6 +3,8 @@ from PIL import Image, ImageFilter, ImageFont
 import numpy
 import tempfile
 
+text_cache = {}
+
 class Character:
     def __init__(self, text, color=None):
         self.text = text
@@ -65,7 +67,25 @@ def blur_text_clip(text_clip, blur_radius: int) -> VideoClip:
 
     return text_clip
 
-def create_text(text, fontsize, color, font, bg_color='transparent', blur_radius: int=0, opacity=1, stroke_color=None, stroke_width=1, kerning=0) -> VideoClip:
+def create_text(
+    text: str,
+    fontsize: int,
+    color: str,
+    font: str,
+    bg_color: str = 'transparent',
+    blur_radius: int = 0,
+    opacity: float = 1.0,
+    stroke_color: str | None = None,
+    stroke_width: int = 1,
+    kerning: float = 0.0,
+) -> VideoClip:
+    global text_cache
+
+    arg_hash = hash((text, fontsize, color, font, bg_color, blur_radius, opacity, stroke_color, stroke_width, kerning))
+
+    if arg_hash in text_cache:
+        return text_cache[arg_hash].copy()
+
     text_clip = TextClipEx(txt=text, fontsize=fontsize, color=color, bg_color=bg_color, font=font, stroke_color=stroke_color, stroke_width=stroke_width, kerning=kerning)
 
     text_clip = text_clip.set_opacity(opacity)
@@ -73,9 +93,22 @@ def create_text(text, fontsize, color, font, bg_color='transparent', blur_radius
     if blur_radius:
         text_clip = blur_text_clip(text_clip, blur_radius)
 
+    text_cache[arg_hash] = text_clip.copy()
+
     return text_clip
 
-def create_text_chars(text: list[Word] | list[Character], fontsize, color, font, bg_color='transparent', blur_radius: int=0, opacity=1, stroke_color=None, stroke_width=1, add_space_between_words=True) -> list[VideoClip]:
+def create_text_chars(
+    text: list[Word] | list[Character],
+    fontsize,
+    color,
+    font,
+    bg_color = 'transparent',
+    blur_radius: int = 0,
+    opacity = 1,
+    stroke_color = None,
+    stroke_width = 1,
+    add_space_between_words = True,
+) -> list[VideoClip]:
     # Create a clip for each character
     clips = []
     for i, item in enumerate(text):
@@ -118,7 +151,18 @@ def create_composite_text(text_clips: list[VideoClip], font, font_size) -> Compo
 def str_to_charlist(text: str) -> list[Character]:
     return [Character(char) for char in text]
 
-def create_text_ex(text: list[Word] | list[Character] | str, fontsize, color, font, bg_color='transparent', blur_radius: int=0, opacity=1, stroke_color=None, stroke_width=1, kerning=0) -> CompositeVideoClip:
+def create_text_ex(
+    text: list[Word] | list[Character] | str,
+    fontsize,
+    color,
+    font,
+    bg_color='transparent',
+    blur_radius: int = 0,
+    opacity = 1,
+    stroke_color = None,
+    stroke_width = 1,
+    kerning = 0,
+) -> CompositeVideoClip:
     if isinstance(text, str):
         text = str_to_charlist(text)
     text_clips = create_text_chars(text, fontsize, color, font, bg_color, blur_radius, opacity, stroke_color, stroke_width)
