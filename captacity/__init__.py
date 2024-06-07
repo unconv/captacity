@@ -57,10 +57,17 @@ def calculate_lines(text, font, font_size, stroke_width, frame_width):
             }
             word_index += 1
         else:
-            if line_to_draw:
-                lines.append(line_to_draw)
-                total_height += line_height
-                line_to_draw = None
+            if not line_to_draw:
+                print(f"NOTICE: Word '{line.strip()}' is too long for the frame!")
+                line_to_draw = {
+                    "text": line.strip(),
+                    "height": line_height,
+                }
+                word_index += 1
+
+            lines.append(line_to_draw)
+            total_height += line_height
+            line_to_draw = None
             line = ""
 
     if line_to_draw:
